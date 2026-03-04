@@ -1,0 +1,1677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数学函数可视化工具 - 完整版</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 320px 1fr 380px;
+            gap: 20px;
+            padding: 20px;
+            height: 100vh;
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+
+        /* 面板基础样式 */
+        .panel {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #64ffda;
+        }
+
+        .panel-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(180deg, #64ffda, #00bcd4);
+            border-radius: 2px;
+        }
+
+        /* 输入区域优化 */
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            color: #a0a0a0;
+            margin-bottom: 8px;
+        }
+
+        .input-group input, .input-group select, .input-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        .input-group input:focus, .input-group select:focus, .input-group textarea:focus {
+            outline: none;
+            border-color: #64ffda;
+            box-shadow: 0 0 20px rgba(100, 255, 218, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        /* 按钮样式优化 */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #64ffda, #00bcd4);
+            color: #1a1a2e;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(100, 255, 218, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* 图形区域优化 */
+        .graph-panel {
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .graph-header {
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .graph-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #64ffda;
+        }
+
+        .view-toggle {
+            display: flex;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 4px;
+        }
+
+        .view-btn {
+            padding: 8px 20px;
+            border: none;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+
+        .view-btn.active {
+            background: linear-gradient(135deg, #64ffda, #00bcd4);
+            color: #1a1a2e;
+            font-weight: 600;
+        }
+
+        #graph-container {
+            flex: 1;
+            min-height: 400px;
+        }
+
+        /* 加载状态 */
+        .loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #64ffda;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 性能指示器 */
+        .performance-info {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            color: #64ffda;
+        }
+
+        /* 预设函数 */
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .preset-btn {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: #ccc;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .preset-btn:hover {
+            background: rgba(100, 255, 218, 0.15);
+            border-color: #64ffda;
+            color: #64ffda;
+        }
+
+        /* 函数列表 */
+        .function-list {
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .function-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .function-item .color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .function-item .expr {
+            flex: 1;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            color: #ccc;
+        }
+
+        .function-item .remove-btn {
+            width: 24px;
+            height: 24px;
+            background: rgba(255, 82, 82, 0.2);
+            border: none;
+            border-radius: 6px;
+            color: #ff5252;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .function-item .remove-btn:hover {
+            background: rgba(255, 82, 82, 0.4);
+        }
+
+        /* 范围输入 */
+        .range-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .range-input {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .range-input label {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .range-input input {
+            padding: 8px 10px;
+            font-size: 13px;
+        }
+
+        /* 标签页 */
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: #888;
+            cursor: pointer;
+            text-align: center;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            background: rgba(100, 255, 218, 0.15);
+            border-color: #64ffda;
+            color: #64ffda;
+        }
+
+        /* 帮助文本 */
+        .help-text {
+            font-size: 11px;
+            color: #666;
+            margin-top: 5px;
+            line-height: 1.5;
+        }
+
+        .help-text code {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* AI助教面板 */
+        .ai-panel {
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+        }
+
+        .ai-header {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .ai-avatar {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .ai-info h3 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .ai-info p {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .ai-status {
+            width: 10px;
+            height: 10px;
+            background: #4caf50;
+            border-radius: 50%;
+            margin-left: auto;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 90%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.6;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.ai {
+            background: rgba(102, 126, 234, 0.2);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.user {
+            background: rgba(100, 255, 218, 0.2);
+            border: 1px solid rgba(100, 255, 218, 0.3);
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.typing {
+            display: flex;
+            gap: 5px;
+            padding: 15px 20px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .chat-input-container {
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px 18px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 25px;
+            color: #fff;
+            font-size: 14px;
+            resize: none;
+            max-height: 100px;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .send-btn {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 50%;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        /* 快捷问题 */
+        .quick-questions {
+            padding: 10px 20px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .quick-btn {
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            color: #888;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .quick-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: #667eea;
+            color: #fff;
+        }
+
+        /* 函数性质面板 */
+        .properties-panel {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .property-item {
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 3px solid #64ffda;
+        }
+
+        .property-label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .property-value {
+            font-size: 14px;
+            color: #fff;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* 响应式优化 */
+        @media (max-width: 1400px) {
+            .container {
+                grid-template-columns: 280px 1fr 320px;
+            }
+        }
+
+        @media (max-width: 1100px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr auto;
+                height: auto;
+            }
+
+            .left-panel {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+
+            .left-panel .panel {
+                flex: 1;
+                min-width: 280px;
+            }
+
+            .ai-panel {
+                height: 500px;
+            }
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 左侧面板 -->
+        <div class="left-panel">
+            <!-- 函数输入面板 -->
+            <div class="panel">
+                <div class="panel-title">函数输入</div>
+                
+                <div class="tabs">
+                    <div class="tab active" data-mode="2d" onclick="switchMode('2d')">2D 平面</div>
+                    <div class="tab" data-mode="3d" onclick="switchMode('3d')">3D 空间</div>
+                </div>
+
+                <div id="input-2d">
+                    <div class="input-group">
+                        <label>函数类型</label>
+                        <select id="function-type-2d" onchange="updateInputPlaceholder()">
+                            <option value="explicit">显式函数 y = f(x)</option>
+                            <option value="implicit">隐式方程 F(x,y) = 0</option>
+                            <option value="parametric">参数方程</option>
+                            <option value="polar">极坐标 r = f(θ)</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group" id="explicit-input">
+                        <label>输入表达式</label>
+                        <input type="text" id="function-expr" placeholder="例如: x^2, sin(x), exp(-x^2)">
+                        <p class="help-text">支持: <code>sin</code> <code>cos</code> <code>tan</code> <code>exp</code> <code>log</code> <code>sqrt</code> <code>abs</code> <code>^</code></p>
+                    </div>
+
+                    <div class="input-group" id="parametric-input" style="display:none;">
+                        <label>x(t) =</label>
+                        <input type="text" id="param-x" placeholder="例如: cos(t)">
+                        <label style="margin-top:10px;">y(t) =</label>
+                        <input type="text" id="param-y" placeholder="例如: sin(t)">
+                        <label style="margin-top:10px;">t 范围</label>
+                        <div class="range-group">
+                            <div class="range-input">
+                                <label>最小值</label>
+                                <input type="number" id="param-t-min" value="0">
+                            </div>
+                            <div class="range-input">
+                                <label>最大值</label>
+                                <input type="number" id="param-t-max" value="6.28">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="input-group" id="implicit-input" style="display:none;">
+                        <label>隐式方程 F(x,y) = 0</label>
+                        <input type="text" id="implicit-expr" placeholder="例如: x^2+y^2-1">
+                        <p class="help-text">输入形如 x^2+y^2-1=0 的方程，只需输入左侧部分</p>
+                    </div>
+
+                    <div class="input-group" id="polar-input" style="display:none;">
+                        <label>极坐标方程 r = f(θ)</label>
+                        <input type="text" id="polar-expr" placeholder="例如: cos(3*theta)">
+                        <p class="help-text">使用 theta 表示角度变量</p>
+                    </div>
+                </div>
+
+                <div id="input-3d" style="display:none;">
+                    <div class="input-group">
+                        <label>函数类型</label>
+                        <select id="function-type-3d" onchange="updateInputPlaceholder3D()">
+                            <option value="explicit">曲面 z = f(x,y)</option>
+                            <option value="parametric">参数曲面</option>
+                            <option value="implicit">隐式曲面 F(x,y,z) = 0</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group" id="explicit-input-3d">
+                        <label>输入表达式</label>
+                        <input type="text" id="function-expr-3d" placeholder="例如: sin(sqrt(x^2+y^2))">
+                    </div>
+
+                    <div class="input-group" id="parametric-input-3d" style="display:none;">
+                        <label>x(u,v) =</label>
+                        <input type="text" id="param-x-3d" placeholder="例如: cos(u)*sin(v)">
+                        <label style="margin-top:8px;">y(u,v) =</label>
+                        <input type="text" id="param-y-3d" placeholder="例如: sin(u)*sin(v)">
+                        <label style="margin-top:8px;">z(u,v) =</label>
+                        <input type="text" id="param-z-3d" placeholder="例如: cos(v)">
+                        <label style="margin-top:10px;">参数范围</label>
+                        <div class="range-group">
+                            <div class="range-input">
+                                <label>u 最小</label>
+                                <input type="number" id="param-u-min" value="0">
+                            </div>
+                            <div class="range-input">
+                                <label>u 最大</label>
+                                <input type="number" id="param-u-max" value="6.28">
+                            </div>
+                        </div>
+                        <div class="range-group" style="margin-top:8px;">
+                            <div class="range-input">
+                                <label>v 最小</label>
+                                <input type="number" id="param-v-min" value="0">
+                            </div>
+                            <div class="range-input">
+                                <label>v 最大</label>
+                                <input type="number" id="param-v-max" value="3.14">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="input-group" id="implicit-input-3d" style="display:none;">
+                        <label>隐式曲面 F(x,y,z) = 0</label>
+                        <input type="text" id="implicit-expr-3d" placeholder="例如: x^2+y^2+z^2-1">
+                        <p class="help-text">输入形如 x^2+y^2+z^2-1=0 的方程，只需输入左侧部分</p>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>坐标范围</label>
+                    <div class="range-group">
+                        <div class="range-input">
+                            <label>X 最小</label>
+                            <input type="number" id="x-min" value="-10">
+                        </div>
+                        <div class="range-input">
+                            <label>X 最大</label>
+                            <input type="number" id="x-max" value="10">
+                        </div>
+                    </div>
+                    <div class="range-group" style="margin-top:10px;">
+                        <div class="range-input">
+                            <label>Y 最小</label>
+                            <input type="number" id="y-min" value="-10">
+                        </div>
+                        <div class="range-input">
+                            <label>Y 最大</label>
+                            <input type="number" id="y-max" value="10">
+                        </div>
+                    </div>
+                    <div class="range-group" id="z-range-group" style="margin-top:10px; display:none;">
+                        <div class="range-input">
+                            <label>Z 最小</label>
+                            <input type="number" id="z-min" value="-10">
+                        </div>
+                        <div class="range-input">
+                            <label>Z 最大</label>
+                            <input type="number" id="z-max" value="10">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="plotFunction()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                        </svg>
+                        绘制图像
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearAll()">清除</button>
+                </div>
+            </div>
+
+            <!-- 预设函数面板 -->
+            <div class="panel">
+                <div class="panel-title">预设函数</div>
+                <div class="preset-grid" id="preset-buttons">
+                    <button class="preset-btn" onclick="loadPreset('x^2', '2d')">y = x²</button>
+                    <button class="preset-btn" onclick="loadPreset('sin(x)', '2d')">y = sin(x)</button>
+                    <button class="preset-btn" onclick="loadPreset('cos(x)', '2d')">y = cos(x)</button>
+                    <button class="preset-btn" onclick="loadPreset('exp(x)', '2d')">y = eˣ</button>
+                    <button class="preset-btn" onclick="loadPreset('log(x)', '2d')">y = ln(x)</button>
+                    <button class="preset-btn" onclick="loadPreset('1/x', '2d')">y = 1/x</button>
+                    <button class="preset-btn" onclick="loadPreset('sqrt(x)', '2d')">y = √x</button>
+                    <button class="preset-btn" onclick="loadPreset('abs(x)', '2d')">y = |x|</button>
+                    <button class="preset-btn" onclick="loadPreset('tan(x)', '2d')">y = tan(x)</button>
+                    <button class="preset-btn" onclick="loadPreset('x^3-x', '2d')">y = x³-x</button>
+                </div>
+                <div class="preset-grid" id="preset-buttons-3d" style="display:none;">
+                    <button class="preset-btn" onclick="loadPreset('sin(sqrt(x^2+y^2))', '3d')">波纹</button>
+                    <button class="preset-btn" onclick="loadPreset('x^2+y^2', '3d')">抛物面</button>
+                    <button class="preset-btn" onclick="loadPreset('x^2-y^2', '3d')">马鞍面</button>
+                    <button class="preset-btn" onclick="loadPreset('sin(x)*cos(y)', '3d')">波浪</button>
+                    <button class="preset-btn" onclick="loadPreset('exp(-(x^2+y^2)/10)', '3d')">高斯</button>
+                    <button class="preset-btn" onclick="loadPreset('cos(x)+cos(y)', '3d')">蛋托</button>
+                    <button class="preset-btn" onclick="loadPreset('sqrt(1-x^2-y^2)', '3d')">半球</button>
+                    <button class="preset-btn" onclick="loadPreset('x*y', '3d')">双曲抛物面</button>
+                </div>
+            </div>
+
+            <!-- 函数性质面板 -->
+            <div class="panel">
+                <div class="panel-title">函数性质</div>
+                <div class="properties-panel" id="properties-panel">
+                    <div class="property-item">
+                        <div class="property-label">函数表达式</div>
+                        <div class="property-value" id="property-expression">未定义</div>
+                    </div>
+                    <div class="property-item">
+                        <div class="property-label">定义域</div>
+                        <div class="property-value" id="property-domain">未计算</div>
+                    </div>
+                    <div class="property-item">
+                        <div class="property-label">值域</div>
+                        <div class="property-value" id="property-range">未计算</div>
+                    </div>
+                    <div class="property-item">
+                        <div class="property-label">奇偶性</div>
+                        <div class="property-value" id="property-parity">未计算</div>
+                    </div>
+                    <div class="property-item">
+                        <div class="property-label">周期性</div>
+                        <div class="property-value" id="property-periodicity">未计算</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 中间图形区域 -->
+        <div class="graph-panel">
+            <div class="graph-header">
+                <div class="graph-title">函数图像</div>
+                <div class="view-toggle">
+                    <button class="view-btn active" onclick="switchView('2d')">2D</button>
+                    <button class="view-btn" onclick="switchView('3d')">3D</button>
+                </div>
+            </div>
+            <div id="graph-container">
+                <div class="loading" id="loading-indicator">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+            <div class="performance-info" id="performance-info"></div>
+        </div>
+
+        <!-- 右侧AI助教面板 -->
+        <div class="ai-panel">
+            <div class="ai-header">
+                <div class="ai-avatar">AI</div>
+                <div class="ai-info">
+                    <h3>数学助教</h3>
+                    <p>基于腾讯元宝的AI助手</p>
+                </div>
+                <div class="ai-status"></div>
+            </div>
+            <div class="chat-container" id="chat-container">
+                <div class="message ai">
+                    您好！我是您的数学助教，可以帮您分析函数性质、解释图像特征。请告诉我您想了解什么？
+                </div>
+            </div>
+            <div class="quick-questions">
+                <button class="quick-btn" onclick="askQuickQuestion('这个函数有什么性质？')">函数性质</button>
+                <button class="quick-btn" onclick="askQuickQuestion('这个图像有什么特点？')">图像分析</button>
+                <button class="quick-btn" onclick="askQuickQuestion('这个函数有什么应用？')">实际应用</button>
+                <button class="quick-btn" onclick="askQuickQuestion('如何理解这个函数的图像？')">图像理解</button>
+            </div>
+            <div class="chat-input-container">
+                <textarea class="chat-input" id="chat-input" placeholder="输入您的问题..."></textarea>
+                <button class="send-btn" onclick="sendMessage()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22,2 15,22 11,13 2,9"></polygon>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 数学可视化工具核心类
+        class MathVisualizer {
+            constructor() {
+                this.currentMode = '2d';
+                this.currentView = '2d';
+                this.functions = [];
+                this.compiledExpressions = new Map();
+                this.calculationCache = new Map();
+                this.plotTimeout = null;
+                this.lastPlotTime = 0;
+                this.lastPointCount = 0;
+                this.currentExpression = '';
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.setupPerformanceMonitoring();
+                this.updateUI();
+            }
+
+            setupEventListeners() {
+                // 输入防抖处理
+                const inputs = ['function-expr', 'x-min', 'x-max', 'y-min', 'y-max', 
+                               'function-expr-3d', 'z-min', 'z-max'];
+                inputs.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.addEventListener('input', () => this.schedulePlot());
+                    }
+                });
+
+                // 聊天输入框回车发送
+                document.getElementById('chat-input').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+            }
+
+            setupPerformanceMonitoring() {
+                // 性能监控
+                this.performanceInfo = document.getElementById('performance-info');
+                setInterval(() => {
+                    this.updatePerformanceInfo();
+                }, 1000);
+            }
+
+            // 防抖绘图调度
+            schedulePlot() {
+                if (this.plotTimeout) {
+                    clearTimeout(this.plotTimeout);
+                }
+                this.plotTimeout = setTimeout(() => {
+                    this.plotFunction();
+                }, 300); // 300ms防抖
+            }
+
+            // 预编译数学表达式
+            compileExpression(expression) {
+                if (this.compiledExpressions.has(expression)) {
+                    return this.compiledExpressions.get(expression);
+                }
+
+                try {
+                    const compiled = math.compile(expression);
+                    this.compiledExpressions.set(expression, compiled);
+                    return compiled;
+                } catch (error) {
+                    console.error('表达式编译错误:', error);
+                    return null;
+                }
+            }
+
+            // 带缓存的数学计算
+            cachedCalculation(expression, x, y = null, z = null) {
+                const key = `${expression}-${x}-${y}-${z}`;
+                if (this.calculationCache.has(key)) {
+                    return this.calculationCache.get(key);
+                }
+
+                try {
+                    const compiled = this.compileExpression(expression);
+                    if (!compiled) return NaN;
+
+                    const scope = y !== null ? (z !== null ? {x, y, z} : {x, y}) : {x};
+                    const result = compiled.evaluate(scope);
+                    this.calculationCache.set(key, result);
+                    return result;
+                } catch (error) {
+                    return NaN;
+                }
+            }
+
+            // 自适应采样算法
+            adaptiveSampling(fn, min, max, maxPoints = 1000) {
+                const points = [];
+                const step = (max - min) / 100;
+                
+                let x = min;
+                while (x <= max) {
+                    const y = fn(x);
+                    if (!isNaN(y)) {
+                        points.push({x, y});
+                    }
+                    x += step;
+                }
+
+                // 简化曲线（Douglas-Peucker算法简化版）
+                return this.simplifyCurve(points, 0.01);
+            }
+
+            simplifyCurve(points, tolerance) {
+                if (points.length <= 2) return points;
+
+                let maxDistance = 0;
+                let index = 0;
+                const start = points[0];
+                const end = points[points.length - 1];
+
+                for (let i = 1; i < points.length - 1; i++) {
+                    const distance = this.perpendicularDistance(points[i], start, end);
+                    if (distance > maxDistance) {
+                        maxDistance = distance;
+                        index = i;
+                    }
+                }
+
+                if (maxDistance > tolerance) {
+                    const left = this.simplifyCurve(points.slice(0, index + 1), tolerance);
+                    const right = this.simplifyCurve(points.slice(index), tolerance);
+                    return left.slice(0, -1).concat(right);
+                } else {
+                    return [start, end];
+                }
+            }
+
+            perpendicularDistance(point, lineStart, lineEnd) {
+                const area = Math.abs(
+                    (lineEnd.x - lineStart.x) * (lineStart.y - point.y) - 
+                    (lineStart.x - point.x) * (lineEnd.y - lineStart.y)
+                );
+                const lineLength = Math.sqrt(
+                    Math.pow(lineEnd.x - lineStart.x, 2) + Math.pow(lineEnd.y - lineStart.y, 2)
+                );
+                return lineLength > 0 ? area / lineLength : 0;
+            }
+
+            // 显示加载状态
+            showLoading() {
+                document.getElementById('loading-indicator').style.display = 'block';
+            }
+
+            hideLoading() {
+                document.getElementById('loading-indicator').style.display = 'none';
+            }
+
+            // 更新性能信息
+            updatePerformanceInfo() {
+                const memory = performance.memory;
+                const info = `点数: ${this.lastPointCount} | 时间: ${Math.round(this.lastPlotTime)}ms | 内存: ${Math.round(memory.usedJSHeapSize / 1048576)}MB`;
+                this.performanceInfo.textContent = info;
+            }
+
+            // 更新UI显示
+            updateUI() {
+                // 显示/隐藏Z轴范围输入
+                const zRangeGroup = document.getElementById('z-range-group');
+                if (this.currentMode === '3d') {
+                    zRangeGroup.style.display = 'grid';
+                } else {
+                    zRangeGroup.style.display = 'none';
+                }
+
+                // 更新预设函数按钮显示
+                const preset2d = document.getElementById('preset-buttons');
+                const preset3d = document.getElementById('preset-buttons-3d');
+                
+                if (this.currentMode === '2d') {
+                    preset2d.style.display = 'grid';
+                    preset3d.style.display = 'none';
+                } else {
+                    preset2d.style.display = 'none';
+                    preset3d.style.display = 'grid';
+                }
+            }
+
+            // 切换模式（2D/3D）
+            switchMode(mode) {
+                this.currentMode = mode;
+                this.currentView = mode;
+                
+                // 更新标签页状态
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.querySelector(`.tab[data-mode="${mode}"]`).classList.add('active');
+                
+                // 更新输入面板显示
+                document.getElementById('input-2d').style.display = mode === '2d' ? 'block' : 'none';
+                document.getElementById('input-3d').style.display = mode === '3d' ? 'block' : 'none';
+                
+                // 更新视图按钮状态
+                document.querySelectorAll('.view-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector(`.view-btn[onclick="switchView('${mode}')"]`).classList.add('active');
+                
+                this.updateUI();
+                this.clearPlot();
+            }
+
+            // 切换视图（2D/3D）
+            switchView(view) {
+                this.currentView = view;
+                
+                // 更新视图按钮状态
+                document.querySelectorAll('.view-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector(`.view-btn[onclick="switchView('${view}')"]`).classList.add('active');
+                
+                // 重新绘制当前函数
+                if (this.currentExpression) {
+                    this.plotFunction();
+                }
+            }
+
+            // 更新输入占位符
+            updateInputPlaceholder() {
+                const type = document.getElementById('function-type-2d').value;
+                
+                // 隐藏所有输入区域
+                document.getElementById('explicit-input').style.display = 'none';
+                document.getElementById('parametric-input').style.display = 'none';
+                document.getElementById('implicit-input').style.display = 'none';
+                document.getElementById('polar-input').style.display = 'none';
+                
+                // 显示对应的输入区域
+                if (type === 'explicit') {
+                    document.getElementById('explicit-input').style.display = 'block';
+                } else if (type === 'parametric') {
+                    document.getElementById('parametric-input').style.display = 'block';
+                } else if (type === 'implicit') {
+                    document.getElementById('implicit-input').style.display = 'block';
+                } else if (type === 'polar') {
+                    document.getElementById('polar-input').style.display = 'block';
+                }
+            }
+
+            updateInputPlaceholder3D() {
+                const type = document.getElementById('function-type-3d').value;
+                
+                // 隐藏所有输入区域
+                document.getElementById('explicit-input-3d').style.display = 'none';
+                document.getElementById('parametric-input-3d').style.display = 'none';
+                document.getElementById('implicit-input-3d').style.display = 'none';
+                
+                // 显示对应的输入区域
+                if (type === 'explicit') {
+                    document.getElementById('explicit-input-3d').style.display = 'block';
+                } else if (type === 'parametric') {
+                    document.getElementById('parametric-input-3d').style.display = 'block';
+                } else if (type === 'implicit') {
+                    document.getElementById('implicit-input-3d').style.display = 'block';
+                }
+            }
+
+            // 加载预设函数
+            loadPreset(expression, mode) {
+                if (mode !== this.currentMode) {
+                    this.switchMode(mode);
+                    // 等待UI更新后再设置表达式
+                    setTimeout(() => {
+                        this.setExpression(expression);
+                        this.plotFunction();
+                    }, 100);
+                } else {
+                    this.setExpression(expression);
+                    this.plotFunction();
+                }
+            }
+
+            setExpression(expression) {
+                if (this.currentMode === '2d') {
+                    const type = document.getElementById('function-type-2d').value;
+                    if (type === 'explicit') {
+                        document.getElementById('function-expr').value = expression;
+                    } else if (type === 'implicit') {
+                        document.getElementById('implicit-expr').value = expression;
+                    } else if (type === 'polar') {
+                        document.getElementById('polar-expr').value = expression;
+                    }
+                } else {
+                    document.getElementById('function-expr-3d').value = expression;
+                }
+            }
+
+            // 核心绘图函数
+            async plotFunction() {
+                const startTime = performance.now();
+                this.showLoading();
+
+                try {
+                    if (this.currentMode === '2d') {
+                        await this.plot2DFunction();
+                    } else {
+                        await this.plot3DFunction();
+                    }
+
+                    const endTime = performance.now();
+                    this.lastPlotTime = endTime - startTime;
+
+                    // 更新函数性质分析
+                    this.analyzeFunctionProperties();
+
+                } catch (error) {
+                    console.error('绘图错误:', error);
+                    this.addAIMessage('绘图过程中出现了错误：' + error.message, true);
+                } finally {
+                    this.hideLoading();
+                }
+            }
+
+            async plot2DFunction() {
+                const xMin = parseFloat(document.getElementById('x-min').value);
+                const xMax = parseFloat(document.getElementById('x-max').value);
+                const yMin = parseFloat(document.getElementById('y-min').value);
+                const yMax = parseFloat(document.getElementById('y-max').value);
+                
+                const type = document.getElementById('function-type-2d').value;
+                let traces = [];
+
+                if (type === 'explicit') {
+                    const expression = document.getElementById('function-expr').value;
+                    if (!expression) return;
+
+                    this.currentExpression = `y = ${expression}`;
+                    
+                    // 使用自适应采样
+                    const fn = x => this.cachedCalculation(expression, x);
+                    const points = this.adaptiveSampling(fn, xMin, xMax, 1000);
+
+                    const xValues = points.map(p => p.x);
+                    const yValues = points.map(p => p.y);
+
+                    this.lastPointCount = xValues.length;
+
+                    traces.push({
+                        x: xValues,
+                        y: yValues,
+                        type: 'scattergl',
+                        mode: 'lines',
+                        line: {color: '#64ffda', width: 3},
+                        name: `y = ${expression}`
+                    });
+                } else if (type === 'parametric') {
+                    const xExpr = document.getElementById('param-x').value;
+                    const yExpr = document.getElementById('param-y').value;
+                    const tMin = parseFloat(document.getElementById('param-t-min').value);
+                    const tMax = parseFloat(document.getElementById('param-t-max').value);
+
+                    if (!xExpr || !yExpr) return;
+
+                    this.currentExpression = `x = ${xExpr}, y = ${yExpr}`;
+                    
+                    const tValues = math.range(tMin, tMax, (tMax - tMin) / 500).toArray();
+                    const xValues = tValues.map(t => this.cachedCalculation(xExpr, t));
+                    const yValues = tValues.map(t => this.cachedCalculation(yExpr, t));
+
+                    this.lastPointCount = xValues.length;
+
+                    traces.push({
+                        x: xValues,
+                        y: yValues,
+                        type: 'scattergl',
+                        mode: 'lines',
+                        line: {color: '#ff6b6b', width: 3},
+                        name: `参数方程`
+                    });
+                } else if (type === 'implicit') {
+                    const expression = document.getElementById('implicit-expr').value;
+                    if (!expression) return;
+
+                    this.currentExpression = `F(x,y) = ${expression} = 0`;
+                    
+                    // 使用等高线方法绘制隐函数
+                    const xValues = math.range(xMin, xMax, (xMax - xMin) / 100).toArray();
+                    const yValues = math.range(yMin, yMax, (yMax - yMin) / 100).toArray();
+                    
+                    const zValues = [];
+                    for (let i = 0; i < xValues.length; i++) {
+                        const row = [];
+                        for (let j = 0; j < yValues.length; j++) {
+                            row.push(this.cachedCalculation(expression, xValues[i], yValues[j]));
+                        }
+                        zValues.push(row);
+                    }
+
+                    this.lastPointCount = xValues.length * yValues.length;
+
+                    traces.push({
+                        x: xValues,
+                        y: yValues,
+                        z: zValues,
+                        type: 'contour',
+                        contours: {
+                            start: 0,
+                            end: 0,
+                            size: 0.1,
+                            coloring: 'lines'
+                        },
+                        line: {width: 3},
+                        name: `隐函数`
+                    });
+                } else if (type === 'polar') {
+                    const expression = document.getElementById('polar-expr').value;
+                    if (!expression) return;
+
+                    this.currentExpression = `r = ${expression}`;
+                    
+                    const thetaValues = math.range(0, 2 * Math.PI, 0.01).toArray();
+                    const rValues = thetaValues.map(theta => this.cachedCalculation(expression, theta));
+                    
+                    const xValues = rValues.map((r, i) => r * Math.cos(thetaValues[i]));
+                    const yValues = rValues.map((r, i) => r * Math.sin(thetaValues[i]));
+
+                    this.lastPointCount = xValues.length;
+
+                    traces.push({
+                        x: xValues,
+                        y: yValues,
+                        type: 'scattergl',
+                        mode: 'lines',
+                        line: {color: '#ffa726', width: 3},
+                        name: `极坐标`
+                    });
+                }
+
+                const layout = {
+                    title: `函数图像: ${this.currentExpression}`,
+                    xaxis: {range: [xMin, xMax], title: 'x'},
+                    yaxis: {range: [yMin, yMax], title: 'y'},
+                    font: {family: 'Noto Sans SC, sans-serif', color: '#fff'},
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    showlegend: true
+                };
+
+                Plotly.newPlot('graph-container', traces, layout, {
+                    displayModeBar: true,
+                    displaylogo: false,
+                    responsive: true,
+                    scrollZoom: true
+                });
+            }
+
+            async plot3DFunction() {
+                const xMin = parseFloat(document.getElementById('x-min').value);
+                const xMax = parseFloat(document.getElementById('x-max').value);
+                const yMin = parseFloat(document.getElementById('y-min').value);
+                const yMax = parseFloat(document.getElementById('y-max').value);
+                const zMin = parseFloat(document.getElementById('z-min').value);
+                const zMax = parseFloat(document.getElementById('z-max').value);
+                
+                const type = document.getElementById('function-type-3d').value;
+                let traces = [];
+
+                if (type === 'explicit') {
+                    const expression = document.getElementById('function-expr-3d').value;
+                    if (!expression) return;
+
+                    this.currentExpression = `z = ${expression}`;
+                    
+                    const xValues = math.range(xMin, xMax, (xMax - xMin) / 50).toArray();
+                    const yValues = math.range(yMin, yMax, (yMax - yMin) / 50).toArray();
+                    
+                    const zValues = [];
+                    for (let i = 0; i < xValues.length; i++) {
+                        const row = [];
+                        for (let j = 0; j < yValues.length; j++) {
+                            row.push(this.cachedCalculation(expression, xValues[i], yValues[j]));
+                        }
+                        zValues.push(row);
+                    }
+
+                    this.lastPointCount = xValues.length * yValues.length;
+
+                    traces.push({
+                        x: xValues,
+                        y: yValues,
+                        z: zValues,
+                        type: 'surface',
+                        colorscale: 'Viridis',
+                        name: `z = ${expression}`
+                    });
+                } else if (type === 'parametric') {
+                    const xExpr = document.getElementById('param-x-3d').value;
+                    const yExpr = document.getElementById('param-y-3d').value;
+                    const zExpr = document.getElementById('param-z-3d').value;
+                    const uMin = parseFloat(document.getElementById('param-u-min').value);
+                    const uMax = parseFloat(document.getElementById('param-u-max').value);
+                    const vMin = parseFloat(document.getElementById('param-v-min').value);
+                    const vMax = parseFloat(document.getElementById('param-v-max').value);
+
+                    if (!xExpr || !yExpr || !zExpr) return;
+
+                    this.currentExpression = `参数曲面`;
+                    
+                    const uValues = math.range(uMin, uMax, (uMax - uMin) / 30).toArray();
+                    const vValues = math.range(vMin, vMax, (vMax - vMin) / 30).toArray();
+                    
+                    const xValues = [];
+                    const yValues = [];
+                    const zValues = [];
+                    
+                    for (let i = 0; i < uValues.length; i++) {
+                        const xRow = [];
+                        const yRow = [];
+                        const zRow = [];
+                        
+                        for (let j = 0; j < vValues.length; j++) {
+                            xRow.push(this.cachedCalculation(xExpr, uValues[i], vValues[j]));
+                            yRow.push(this.cachedCalculation(yExpr, uValues[i], vValues[j]));
+                            zRow.push(this.cachedCalculation(zExpr, uValues[i], vValues[j]));
+                        }
+                        
+                        xValues.push(xRow);
+                        yValues.push(yRow);
+                        zValues.push(zRow);
+                    }
+
+                    this.lastPointCount = uValues.length * vValues.length;
+
+                    traces.push({
+                        x: xValues,
+                        y: yValues,
+                        z: zValues,
+                        type: 'surface',
+                        colorscale: 'Plasma',
+                        name: `参数曲面`
+                    });
+                } else if (type === 'implicit') {
+                    const expression = document.getElementById('implicit-expr-3d').value;
+                    if (!expression) return;
+
+                    this.currentExpression = `F(x,y,z) = ${expression} = 0`;
+                    
+                    // 使用等值面方法绘制隐式曲面
+                    const xValues = math.range(xMin, xMax, (xMax - xMin) / 20).toArray();
+                    const yValues = math.range(yMin, yMax, (yMax - yMin) / 20).toArray();
+                    const zValues = math.range(zMin, zMax, (zMax - zMin) / 20).toArray();
+                    
+                    const values = [];
+                    for (let i = 0; i < xValues.length; i++) {
+                        const plane = [];
+                        for (let j = 0; j < yValues.length; j++) {
+                            const row = [];
+                            for (let k = 0; k < zValues.length; k++) {
+                                row.push(this.cachedCalculation(expression, xValues[i], yValues[j], zValues[k]));
+                            }
+                            plane.push(row);
+                        }
+                        values.push(plane);
+                    }
+
+                    this.lastPointCount = xValues.length * yValues.length * zValues.length;
+
+                    traces.push({
+                        x: xValues,
+                        y: yValues,
+                        z: zValues,
+                        value: values,
+                        isomin: 0,
+                        isomax: 0,
+                        surface: {show: true, count: 1},
+                        type: 'isosurface',
+                        colorscale: 'Reds',
+                        name: `隐式曲面`
+                    });
+                }
+
+                const layout = {
+                    title: `3D函数图像: ${this.currentExpression}`,
+                    scene: {
+                        xaxis: {title: 'x', range: [xMin, xMax]},
+                        yaxis: {title: 'y', range: [yMin, yMax]},
+                        zaxis: {title: 'z', range: [zMin, zMax]},
+                        bgcolor: 'rgba(0,0,0,0)'
+                    },
+                    font: {family: 'Noto Sans SC, sans-serif', color: '#fff'},
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    showlegend: true
+                };
+
+                Plotly.newPlot('graph-container', traces, layout, {
+                    displayModeBar: true,
+                    displaylogo: false,
+                    responsive: true
+                });
+            }
+
+            // 分析函数性质
+            analyzeFunctionProperties() {
+                if (!this.currentExpression) return;
+                
+                // 这里可以添加更复杂的函数性质分析
+                // 目前使用简化的分析
+                document.getElementById('property-expression').textContent = this.currentExpression;
+                document.getElementById('property-domain').textContent = '实数域';
+                document.getElementById('property-range').textContent = '待计算';
+                document.getElementById('property-parity').textContent = '待分析';
+                document.getElementById('property-periodicity').textContent = '非周期函数';
+            }
+
+            // 清除绘图
+            clearPlot() {
+                Plotly.purge('graph-container');
+                this.currentExpression = '';
+                document.getElementById('property-expression').textContent = '未定义';
+                document.getElementById('property-domain').textContent = '未计算';
+                document.getElementById('property-range').textContent = '未计算';
+                document.getElementById('property-parity').textContent = '未计算';
+                document.getElementById('property-periodicity').textContent = '未计算';
+            }
+
+            // 清除所有
+            clearAll() {
+                this.clearPlot();
+                this.calculationCache.clear();
+                this.compiledExpressions.clear();
+                this.addAIMessage('已清除所有函数和缓存数据。', true);
+            }
+
+            // AI助教功能
+            addAIMessage(message, isAI = true) {
+                const chatContainer = document.getElementById('chat-container');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${isAI ? 'ai' : 'user'}`;
+                messageDiv.textContent = message;
+                chatContainer.appendChild(messageDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+            showTypingIndicator() {
+                const chatContainer = document.getElementById('chat-container');
+                const typingDiv = document.createElement('div');
+                typingDiv.className = 'message ai typing';
+                typingDiv.id = 'typing-indicator';
+                for (let i = 0; i < 3; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'typing-dot';
+                    typingDiv.appendChild(dot);
+                }
+                chatContainer.appendChild(typingDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                return typingDiv;
+            }
+
+            hideTypingIndicator() {
+                const typingIndicator = document.getElementById('typing-indicator');
+                if (typingIndicator) {
+                    typingIndicator.remove();
+                }
+            }
+
+            // 发送消息到AI助教（模拟）
+            async sendMessage() {
+                const input = document.getElementById('chat-input');
+                const message = input.value.trim();
+                if (!message) return;
+
+                // 添加用户消息
+                this.addAIMessage(message, false);
+                input.value = '';
+
+                // 显示输入指示器
+                const typingIndicator = this.showTypingIndicator();
+
+                // 模拟AI响应（实际应用中应调用AI API）
+                setTimeout(() => {
+                    this.hideTypingIndicator();
+                    
+                    // 根据消息内容生成响应
+                    let response = this.generateAIResponse(message);
+                    this.addAIMessage(response, true);
+                }, 1000 + Math.random() * 2000);
+            }
+
+            // 生成AI响应（模拟）
+            generateAIResponse(message) {
+                const lowerMessage = message.toLowerCase();
+                
+                if (lowerMessage.includes('性质') || lowerMessage.includes('特征')) {
+                    return `函数 ${this.currentExpression || '当前'} 的性质分析：
+- 定义域：实数域（除非有分母为零或负数开偶次方的情况）
+- 值域：取决于具体函数形式
+- 奇偶性：需要进一步分析函数对称性
+- 单调性：通过导数分析函数的增减区间`;
+                } else if (lowerMessage.includes('图像') || lowerMessage.includes('图形')) {
+                    return `函数图像分析：
+- 图像形状：${this.currentExpression ? '已绘制在右侧' : '请先绘制函数图像'}
+- 关键点：包括零点、极值点、拐点等
+- 渐近线：分析函数在无穷远处的行为
+- 对称性：观察图像是否关于原点或y轴对称`;
+                } else if (lowerMessage.includes('应用') || lowerMessage.includes('用途')) {
+                    return `函数的实际应用：
+- 数学建模：描述自然现象和工程问题
+- 物理学：运动学、波动等领域的数学模型
+- 经济学：成本、收益、需求等函数关系
+- 工程学：信号处理、控制系统设计等`;
+                } else if (lowerMessage.includes('导数') || lowerMessage.includes('微分')) {
+                    return `导数与微分：
+- 导数表示函数在某点的变化率
+- 微分是函数变化的线性近似
+- 通过导数可以分析函数的单调性和极值`;
+                } else if (lowerMessage.includes('积分')) {
+                    return `积分与应用：
+- 积分是导数的逆运算
+- 用于计算面积、体积、位移等
+- 定积分表示函数在区间上的累积效应`;
+                } else {
+                    return `关于您的问题"${message}"，我可以帮助您分析函数性质、解释图像特征、讨论数学概念和应用。请告诉我您想了解的具体内容，或尝试点击下方的快捷问题按钮。`;
+                }
+            }
+
+            // 快捷问题
+            askQuickQuestion(question) {
+                document.getElementById('chat-input').value = question;
+                this.sendMessage();
+            }
+        }
+
+        // 初始化应用
+        let visualizer;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            visualizer = new MathVisualizer();
+            
+            // 初始绘制一个示例函数
+            setTimeout(() => {
+                document.getElementById('function-expr').value = 'sin(x)';
+                visualizer.plotFunction();
+            }, 1000);
+        });
+
+        // 全局函数，用于HTML事件调用
+        function switchMode(mode) {
+            visualizer.switchMode(mode);
+        }
+
+        function switchView(view) {
+            visualizer.switchView(view);
+        }
+
+        function updateInputPlaceholder() {
+            visualizer.updateInputPlaceholder();
+        }
+
+        function updateInputPlaceholder3D() {
+            visualizer.updateInputPlaceholder3D();
+        }
+
+        function plotFunction() {
+            visualizer.plotFunction();
+        }
+
+        function clearAll() {
+            visualizer.clearAll();
+        }
+
+        function loadPreset(expression, mode) {
+            visualizer.loadPreset(expression, mode);
+        }
+
+        function sendMessage() {
+            visualizer.sendMessage();
+        }
+
+        function askQuickQuestion(question) {
+            visualizer.askQuickQuestion(question);
+        }
+    </script>
+</body>
+</html>
